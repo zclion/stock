@@ -47,6 +47,35 @@ def format_percent(value):
     return result
 
 
+def get_ma_of_kline(df, days):
+    assert days in (5, 13, 21, 34)
+    ma = 0.0
+    for idx, row in df.iterrows():
+        if row['close'] == '':
+            continue
+        close_price = float(row['close'])
+        ma += close_price
+        if idx == (days - 1):
+            break
+    result = ma / float(days)
+    result = round(result, 2)
+    return result
+
+
+def get_ma_of_volume(df, days=50):
+    ma = 0.0
+    for idx, row in df.iterrows():
+        if row['volume'] == '':
+            continue
+        volume = float(row['volume'])
+        ma += volume
+        if idx == (days - 1):
+            break
+    result = ma / float(days)
+    result = round(result)
+    return result
+
+
 def parse(row_data):
     '''
     is_st = row_data[query_items_dict['isST']]

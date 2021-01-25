@@ -67,3 +67,43 @@ def read_last_date_of_stock(sql_engine, table_name):
     last_update_date = datetime.datetime.strptime(last_update_date, '%Y-%m-%d').date()
     last_update_date = last_update_date + datetime.timedelta(days=1)
     return last_update_date
+
+
+def read_stock(sql_engine, table_name):
+    sql = 'select * from %s order by date desc' % table_name
+    with sql_engine.engine.connect() as conn, conn.begin():
+        df = pd.read_sql_query(sql, sql_engine)
+    return df
+
+
+def set_index():
+    engine = get_mysql_engine()
+    conn = engine.raw_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('show tables;')
+    tables = cursor.fetchall()
+    result = []
+    for table in tables:
+        table = str(table)
+        table = table[2:]
+        table = table[:-3]
+        if table == 'basic_stock_list':
+            print('skip basic_stock_list')
+            continue
+        result.append(table)
+
+    i = 0
+    for table_name in result:
+        print('=====' + table_name, i)
+        s1 = 'ALTER TABLE %s MODIFY COLUMN date varchar(255);' % table_name
+        cursor.execute(s1)
+        result = cursor.fetchall()
+
+        s2 = 'ALTER TABLE `%s` ADD UNIQUE (`date`);' % table_name
+        cursor.execute(s2)
+        result = cursor.fetchall()
+        i += 1
+
+    cursor.close()
+    conn.close()

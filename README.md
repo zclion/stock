@@ -1,15 +1,11 @@
-TODO:
-1. calculate MovingAverage, and other analysis system
-2. get 板块列表
-3. 补充股票所属行业信息和财务信息 
-
 策略TODO：
-1. 剔除 ST
-2. 剔除停牌
-3. 剔除市值小于80亿
-4. 剔除亏损和业绩差
-5. 剔除最近5日成交量小于MA50
-6. 剔除最近5日收盘价低于MA13
-7. 剔除最近5日，每天涨幅高于8%
-8. 剔除 黑名单板块（可更新，第一版：银行、保险、地产）
-9.剔除上市60日以内的 （数据记录不足60）
+1. 剔除市值小于80亿
+2. 剔除亏损和业绩差
+3. 剔除 黑名单板块（可更新，第一版：银行、保险、地产）
+
+mysql:
+1. 设置主键：
+1.1 ALTER TABLE basic_stock_list MODIFY COLUMN code varchar(255);
+1.2 ALTER TABLE `basic_stock_list` ADD UNIQUE (`code`);
+1.3 run set_index in storage.py
+
