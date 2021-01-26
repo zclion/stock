@@ -25,6 +25,7 @@ class Stock(object):
     def __init__(self, code, name):
         self.code = code
         self.name = name
+        self.reason = ''
 
     def set_ipo_date(self, date):
         self.ipo_date_str = date

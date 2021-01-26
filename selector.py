@@ -1,12 +1,21 @@
 import baostock as bs
 import datetime
 from stock_data import get_day_level_data
-from basic_data import get_stock_list, get_nearest_trade_day
+from stock_data import get_stock_list
+from stock_data import get_nearest_trade_day
+from stock_data import get_industry
+
 from storage import get_mysql_engine
 from storage import need_update_table
-from storage import read_stock_list, read_table_exist, read_last_date_of_stock, read_stock
-from analysis import get_ma_of_kline, get_ma_of_volume
-from constants import NUM_RECORD, MIN_IPO_DAYS, BLACK_LIST, BLACK_INDUSTRY
+from storage import read_stock_list
+from storage import read_table_exist
+from storage import read_last_date_of_stock
+from storage import read_stock
+
+from analysis import get_ma_of_kline
+from analysis import get_ma_of_volume
+
+from constants import NUM_RECORD, MIN_IPO_DAYS, BLACK_LIST, BLACK_INDUSTRY, BLACK_KEYWORD
 from utils import Stock
 
 
@@ -97,20 +106,34 @@ class Pipeline(object):
         bs.logout()
 
     def do_filter(self, stocks):
+        industry_dict = get_industry()
         result = []
         for stock in stocks:
             if stock.has_ipo_days < MIN_IPO_DAYS:
                 print('=====Skip [%s], 上市时间[%d]小于%d' % (stock.name, stock.has_ipo_days, MIN_IPO_DAYS))
                 continue
             if not stock.is_stock:
-                # print('=====Skip [%s] because it is not stock' % stock.name)
+                print('=====Skip [%s], 板块指数' % stock.name)
                 continue
             if stock.is_out:
                 print('=====Skip [%s], 已退市' % stock.name)
                 continue
-            if stock.code.startswith('688'):
+            if stock.code[3:].startswith('688'):
                 print('=====Skip [%s], 不关注科创板' % stock.name)
                 continue
+
+            if industry_dict is not None and stock.code in industry_dict:
+                if industry_dict[stock.code] in BLACK_INDUSTRY:
+                    print('=====Skip [%s], 不关注%s板块' % (stock.name, industry_dict[stock.code]))
+                    continue
+            if stock.name in BLACK_LIST:
+                print('=====Skip [%s], 此股位于黑名单' % stock.name)
+                continue
+
+            for kw in BLACK_KEYWORD:
+                if kw in stock.name:
+                    print('=====Skip [%s], 不关注%s板块' % (stock.name, kw))
+                    continue
 
             table_name = 'stock_' + stock.code[:2] + '_' + stock.code[3:]
             df = read_stock(self.sql_engine, table_name)
@@ -132,6 +155,7 @@ class Pipeline(object):
             last_pctChg = []
             last_close_price = []
             last_amount = []
+            day_interval = 3
             for idx, row in df.iterrows():
                 if row['volume'] != '':
                     volume = float(row['volume'])
@@ -145,7 +169,7 @@ class Pipeline(object):
                 if row['amount'] != '':
                     amount = float(row['amount'])
                     last_amount.append(amount)
-                if idx == 4:
+                if idx == (day_interval - 1):
                     break
 
             volume_ma50 = get_ma_of_volume(df)
@@ -154,52 +178,47 @@ class Pipeline(object):
             # ma21 = get_ma_of_kline(df, days=21)
 
             if max(last_close_price) >= 500:
-                print('=====Skip [%s], 股价超过500' % stock.name)
+                print('=====Skip [%s], 股价超过500元' % stock.name)
                 continue
             if max(last_close_price) <= 3:
-                print('=====Skip [%s], 股价低于3' % stock.name)
+                print('=====Skip [%s], 股价低于3元' % stock.name)
                 continue
 
-            if last_pctChg[0] < 3:
-                print('=====Skip [%s], 今日跌幅超过3个点' % stock.name)
+            if last_pctChg[0] < -2:
+                print('=====Skip [%s], 今日跌幅超过2个点' % stock.name)
                 continue
 
-            if last_amount[0] < 100000000:
-                print('=====Skip [%s], 成交量小于1亿' % stock.name)
+            if last_amount[0] < 300000000:
+                print('=====Skip [%s], 今日成交量小于3亿' % stock.name)
                 continue
 
             if max(last_volumes) < volume_ma50:
-                print('=====Skip [%s], 连续5天成交量小于MA50' % stock.name)
+                print('=====Skip [%s], 连续%d天成交量小于MA50' % (stock.name, day_interval))
                 continue
             if max(last_pctChg) < 0:
-                print('=====Skip [%s], 连跌5天' % stock.name)
-                continue
-            if min(last_pctChg) > 8:
-                print('=====Skip [%s], 连续5天上涨幅度超过8个点' % stock.name)
+                print('=====Skip [%s], 连跌%d天' % (stock.name, day_interval))
                 continue
             if max(last_close_price) < ma13:
-                print('=====Skip [%s], 连续5天收盘价低于MA13' % stock.name)
+                print('=====Skip [%s], 连续%d天收盘价低于MA13' % (stock.name, day_interval))
                 continue
 
-            for industry in BLACK_INDUSTRY:
-                if industry in stock.name:
-                    print('=====Skip [%s], 不关注%s板块' % (stock.name, industry))
-                    continue
-
-            if stock.name in BLACK_LIST:
-                print('=====Skip [%s], 此股位于黑名单' % stock.name)
-                continue
-
-            # stock.df = df
+            if min(last_pctChg) > 9.8:
+                stock.reason = '三连板'
+            if len(last_amount) >= 2:
+                if last_amount[0] / last_amount[1] > 1.5:
+                    stock.reason = '放量'
+            if 2 < min(last_pctChg) < 6:
+                stock.reason = '多头排列'
             result.append(stock)
 
         return result
 
-    def run(self):
+    def run(self, update_daily):
         self.login()
         self.init_stock_list()
         stocks = self.get_stock_basic_info()
-        self.update_daily_data(stocks)
+        if update_daily:
+            self.update_daily_data(stocks)
         result = self.do_filter(stocks)
         self.logout()
         return result
