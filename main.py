@@ -3,8 +3,7 @@ from utils import send_to_dingtalk
 
 if __name__ == '__main__':
     pipeline = Pipeline()
-    result = pipeline.run(update_daily=True)
-
+    result = pipeline.run(update_daily=False)
     print('===========================================')
     msg = ''
     i = 0

@@ -4,6 +4,7 @@ from stock_data import get_day_level_data
 from stock_data import get_stock_list
 from stock_data import get_nearest_trade_day
 from stock_data import get_industry
+from stock_data import get_profit
 
 from storage import get_mysql_engine
 from storage import need_update_table
@@ -80,6 +81,7 @@ class Pipeline(object):
             if date_diff < 0:
                 print('=====Skipping stock [%s] because we have just updated' % stock.name)
                 continue
+
             kline = get_day_level_data(stock.code, str(last_day), str(today))
             if kline is None:
                 print('=====Skipping stock [%s] because get_day_level_data returns None' % stock.name)
@@ -202,13 +204,26 @@ class Pipeline(object):
                 print('=====Skip [%s], 连续%d天收盘价低于MA13' % (stock.name, day_interval))
                 continue
 
+            profit = get_profit(stock.code)
+            if profit is not None and len(profit) == 1:
+                liqaShare = float(profit['liqaShare'][0])
+                total_value = (last_close_price[0] * liqaShare) / 100000000
+                total_value = round(total_value, 2)
+                if total_value < 80:
+                    print('=====Skip [%s], 市值%.2f小于80亿' % (stock.name, total_value))
+                    continue
+                netProfit = float(profit['netProfit'][0])
+                netProfit = netProfit / 100000000.0
+                netProfit = round(netProfit, 2)
+                if netProfit < 0.5:
+                    print('=====Skip [%s], 季报净利润%.2f低于5千万' % (stock.name, netProfit))
+                    continue
+
             if min(last_pctChg) > 9.8:
                 stock.reason = '三连板'
             if len(last_amount) >= 2:
                 if last_amount[0] / last_amount[1] > 1.5:
-                    stock.reason = '放量'
-            if 2 < min(last_pctChg) < 6:
-                stock.reason = '多头排列'
+                    stock.reason += ' 放量'
             result.append(stock)
 
         return result

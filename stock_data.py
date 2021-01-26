@@ -1,6 +1,7 @@
 import baostock as bs
 import pandas as pd
 import datetime
+import time
 
 
 def get_trade_status(day):
@@ -120,3 +121,38 @@ def get_industry():
             continue
         result_dict[row['code']] = row['industry']
     return result_dict
+
+
+def get_profit(stock_code):
+    year = time.strftime("%Y", time.localtime())
+    quarter = (int(time.strftime("%m", time.localtime())) + 2) // 3
+    retry_time = 0
+    while True:
+        result = _do_get_profit(stock_code, year, quarter)
+        if result is not None:
+            break
+
+        if quarter == 1:
+            year = str(int(year) - 1)
+            quarter = 4
+        else:
+            quarter -= 1
+        retry_time += 1
+        if retry_time >= 4:
+            break
+    return result
+
+
+def _do_get_profit(stock_code, year=None, quarter=None):
+    rs_profit = bs.query_profit_data(code=stock_code, year=year, quarter=quarter)
+    if int(rs_profit.error_code) != 0:
+        print('query_profit_data respond error_msg:' + rs_profit.error_msg)
+        return None
+
+    profit_list = []
+    while rs_profit.next():
+        profit_list.append(rs_profit.get_row_data())
+    if len(profit_list) == 0:
+        return None
+    result_profit = pd.DataFrame(profit_list, columns=rs_profit.fields)
+    return result_profit
