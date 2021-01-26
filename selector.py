@@ -206,18 +206,20 @@ class Pipeline(object):
 
             profit = get_profit(stock.code)
             if profit is not None and len(profit) == 1:
-                liqaShare = float(profit['liqaShare'][0])
-                total_value = (last_close_price[0] * liqaShare) / 100000000
-                total_value = round(total_value, 2)
-                if total_value < 80:
-                    print('=====Skip [%s], 市值%.2f小于80亿' % (stock.name, total_value))
-                    continue
-                netProfit = float(profit['netProfit'][0])
-                netProfit = netProfit / 100000000.0
-                netProfit = round(netProfit, 2)
-                if netProfit < 0.5:
-                    print('=====Skip [%s], 季报净利润%.2f低于5千万' % (stock.name, netProfit))
-                    continue
+                if profit['liqaShare'][0] != '':
+                    liqaShare = float(profit['liqaShare'][0])
+                    total_value = (last_close_price[0] * liqaShare) / 100000000
+                    total_value = round(total_value, 2)
+                    if total_value < 80:
+                        print('=====Skip [%s], 市值%.2f亿小于80亿' % (stock.name, total_value))
+                        continue
+                if profit['netProfit'][0] != '':
+                    netProfit = float(profit['netProfit'][0])
+                    netProfit = netProfit / 100000000.0
+                    netProfit = round(netProfit, 2)
+                    if netProfit < 0.5:
+                        print('=====Skip [%s], 季报净利润%.2f亿低于5千万' % (stock.name, netProfit))
+                        continue
 
             if min(last_pctChg) > 9.8:
                 stock.reason = '三连板'
