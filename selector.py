@@ -179,7 +179,7 @@ class Pipeline(object):
             volume_ma50 = get_ma_of_volume(df)
             # ma5 = get_ma_of_kline(df, days=5)
             ma13 = get_ma_of_kline(df, days=13)
-            # ma21 = get_ma_of_kline(df, days=21)
+            ma21 = get_ma_of_kline(df, days=21)
 
             if max(last_close_price) >= 400:
                 print('=====Skip [%s], 最近股价超过400元' % stock.name)
@@ -208,6 +208,9 @@ class Pipeline(object):
                 continue
             if max(last_close_price) < ma13:
                 print('=====Skip [%s], 最近%d天收盘价都低于MA13' % (stock.name, day_interval))
+                continue
+            if max(last_close_price) < ma21:
+                print('=====Skip [%s], 最近%d天收盘价都低于MA21' % (stock.name, day_interval))
                 continue
 
             profit = get_profit(stock.code)
