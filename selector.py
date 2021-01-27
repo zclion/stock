@@ -181,15 +181,19 @@ class Pipeline(object):
             ma13 = get_ma_of_kline(df, days=13)
             # ma21 = get_ma_of_kline(df, days=21)
 
-            if max(last_close_price) >= 500:
-                print('=====Skip [%s], 股价超过500元' % stock.name)
+            if max(last_close_price) >= 400:
+                print('=====Skip [%s], 最近股价超过400元' % stock.name)
                 continue
             if max(last_close_price) <= 3:
-                print('=====Skip [%s], 股价低于3元' % stock.name)
+                print('=====Skip [%s], 最近股价低于3元' % stock.name)
                 continue
 
             if last_pctChg[0] < -2:
                 print('=====Skip [%s], 今日跌幅超过2个点' % stock.name)
+                continue
+
+            if last_pctChg[0] > 8:
+                print('=====Skip [%s], 今日涨幅超过8个点' % stock.name)
                 continue
 
             if last_amount[0] < 300000000:
@@ -197,23 +201,23 @@ class Pipeline(object):
                 continue
 
             if max(last_volumes) < volume_ma50:
-                print('=====Skip [%s], 连续%d天成交量小于MA50' % (stock.name, day_interval))
+                print('=====Skip [%s], 最近%d天成交量均小于MA50' % (stock.name, day_interval))
                 continue
-            if max(last_pctChg) < 0:
-                print('=====Skip [%s], 连跌%d天' % (stock.name, day_interval))
+            if max(last_pctChg) <= 0:
+                print('=====Skip [%s], 最近%d天连跌' % (stock.name, day_interval))
                 continue
             if max(last_close_price) < ma13:
-                print('=====Skip [%s], 连续%d天收盘价低于MA13' % (stock.name, day_interval))
+                print('=====Skip [%s], 最近%d天收盘价都低于MA13' % (stock.name, day_interval))
                 continue
 
             profit = get_profit(stock.code)
             if profit is not None and len(profit) == 1:
                 if profit['liqaShare'][0] != '':
                     liqaShare = float(profit['liqaShare'][0])
-                    total_value = (last_close_price[0] * liqaShare) / 100000000
+                    total_value = (last_close_price[0] * liqaShare) / 100000000.0
                     total_value = round(total_value, 2)
-                    if total_value < 80:
-                        print('=====Skip [%s], 市值%.2f亿小于80亿' % (stock.name, total_value))
+                    if total_value < 100:
+                        print('=====Skip [%s], 市值%.2f亿小于100亿' % (stock.name, total_value))
                         continue
                 if profit['netProfit'][0] != '':
                     netProfit = float(profit['netProfit'][0])
@@ -223,26 +227,22 @@ class Pipeline(object):
                         print('=====Skip [%s], 季报净利润%.2f亿低于5千万' % (stock.name, netProfit))
                         continue
 
-            if min(last_pctChg) > 9.8:
-                stock.reason = '三连板'
             if len(last_amount) >= 2:
-                if last_amount[0] / last_amount[1] > 1.5:
-                    stock.reason += ' 放量'
+                if last_amount[0] / last_amount[1] >= 2:
+                    stock.reason += ' 倍量'
             result.append(stock)
 
         return result
 
-    def run(self, update_daily):
+    def run(self, update_daily, num_thread=8):
         self.login()
         self.init_stock_list()
         stocks = self.get_stock_basic_info()
         if update_daily:
-            procees_nums = 4
-            pool = Pool(procees_nums)
-            num_per_process = len(stocks) // procees_nums
+            pool = Pool(num_thread)
+            num_per_process = len(stocks) // num_thread
             stocks_process = [stocks[i:i + num_per_process] for i in range(0, len(stocks), num_per_process)]
             pool.map(self.update_daily_data, stocks_process)
-            # self.update_daily_data(stocks)
         result = self.do_filter(stocks)
         self.logout()
         return result
