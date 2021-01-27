@@ -239,7 +239,8 @@ class Pipeline(object):
         if update_daily:
             procees_nums = 4
             pool = Pool(procees_nums)
-            stocks_process = [stocks[i:i + procees_nums] for i in range(0, len(stocks), procees_nums)]
+            num_per_process = len(stocks) // procees_nums
+            stocks_process = [stocks[i:i + num_per_process] for i in range(0, len(stocks), num_per_process)]
             pool.map(self.update_daily_data, stocks_process)
             # self.update_daily_data(stocks)
         result = self.do_filter(stocks)
