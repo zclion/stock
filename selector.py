@@ -18,6 +18,8 @@ from analysis import get_ma_of_volume
 
 from constants import NUM_RECORD, MIN_IPO_DAYS, BLACK_LIST, BLACK_INDUSTRY, BLACK_KEYWORD
 from utils import Stock
+import multiprocessing
+from multiprocessing import Pool
 
 
 class Pipeline(object):
@@ -235,7 +237,11 @@ class Pipeline(object):
         self.init_stock_list()
         stocks = self.get_stock_basic_info()
         if update_daily:
-            self.update_daily_data(stocks)
+            procees_nums = 4
+            pool = Pool(procees_nums)
+            stocks_process = [stocks[i:i + procees_nums] for i in range(0, len(stocks), procees_nums)]
+            pool.map(self.update_daily_data, stocks_process)
+            # self.update_daily_data(stocks)
         result = self.do_filter(stocks)
         self.logout()
         return result
