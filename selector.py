@@ -18,7 +18,6 @@ from analysis import get_ma_of_volume
 
 from constants import NUM_RECORD, MIN_IPO_DAYS, BLACK_LIST, BLACK_INDUSTRY, BLACK_KEYWORD
 from utils import Stock
-import multiprocessing
 from multiprocessing import Pool
 
 
@@ -49,7 +48,7 @@ class Pipeline(object):
         result = []
         for _, stock_data in stock_list.iterrows():
             stock = Stock(stock_data['code'], stock_data['code_name'])
-            stock_type = int(stock_data['stock_type'])  # 1：股票，2：指数,3：其它
+            stock_type = int(stock_data['stock_type'])  # 1：股票 2：指数 3：其它
             if stock_type == 3:
                 print('=====Skipping stock [%s] because type is 3' % stock_data['code_name'])
                 continue
@@ -242,10 +241,13 @@ class Pipeline(object):
         self.init_stock_list()
         stocks = self.get_stock_basic_info()
         if update_daily:
+            self.update_daily_data(stocks)
+            '''
             pool = Pool(num_thread)
             num_per_process = len(stocks) // num_thread
             stocks_process = [stocks[i:i + num_per_process] for i in range(0, len(stocks), num_per_process)]
             pool.map(self.update_daily_data, stocks_process)
+            '''
         result = self.do_filter(stocks)
         self.logout()
         return result
